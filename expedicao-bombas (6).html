@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Bombas e Revenda</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f4f8;font-family:'Segoe UI',sans-serif;color:#1e3a5f}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e3a5f;font-size:14px;font-family:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#1e3a5f}
+textarea{resize:vertical}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#f0f4f8}
+::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo}=React;
+const SK='bombas_rev_v1';
+const MESES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const EMPTY={data:"",transportadora:"",operador:"",auxiliar:"",horaChegada:"",horaSaida:"",notaFiscal:"",destino:"",quantidade:"",chassiList:"",condicao:"OK",conferidoPor:"",observacoes:""};
+const SC={OK:"#16a34a",Avaria:"#dc2626",Retrabalho:"#d97706"};
+
+function load(){try{const d=localStorage.getItem(SK);return d?JSON.parse(d):[]}catch{return[]}}
+function save(r){try{localStorage.setItem(SK,JSON.stringify(r))}catch{}}
+function dur(a,b){if(!a||!b)return null;const[h1,m1]=a.split(":").map(Number);const[h2,m2]=b.split(":").map(Number);const t=(h2*60+m2)-(h1*60+m1);if(t<=0)return null;return`${Math.floor(t/60)}h${String(t%60).padStart(2,"0")}min`}
+
+const INP=(err)=>({width:"100%",padding:"9px 12px",border:`1px solid ${err?"#dc2626":"#cbd5e1"}`,borderRadius:8,background:"#fff",color:"#1e3a5f",fontSize:14,fontFamily:"inherit",outline:"none"});
+const CARD={background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"18px 20px",marginBottom:12};
+const SECT={background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"20px",marginBottom:16};
+
+function Label({text,req}){return<div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"1px",color:"#4a6fa5",fontWeight:600,marginBottom:5}}>{text}{req&&<span style={{color:"#d97706",marginLeft:3}}>*</span>}</div>}
+function Err({show}){return show?<div style={{fontSize:11,color:"#dc2626",marginTop:3}}>Campo obrigatório</div>:null}
+function STitle({n,t}){return<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#1e3a5f",whiteSpace:"nowrap"}}>{n} — {t}</span><div style={{flex:1,height:1,background:"#e2e8f0"}}/></div>}
+function Grid({c,children}){return<div style={{display:"grid",gridTemplateColumns:`repeat(${c},1fr)`,gap:14}}>{children}</div>}
+function Badge({s}){return<span style={{background:SC[s]+"18",color:SC[s],border:`1px solid ${SC[s]}44`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>{s}</span>}
+
+function StatCard({label,value,color="#1e3a5f",sub}){
+  return<div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"18px 20px",flex:1,minWidth:130}}>
+    <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"1px",color:"#4a6fa5",marginBottom:8}}>{label}</div>
+    <div style={{fontSize:30,fontWeight:700,color,lineHeight:1}}>{value}</div>
+    {sub&&<div style={{fontSize:12,color:"#64748b",marginTop:5}}>{sub}</div>}
+  </div>
+}
+
+function App(){
+  const[tab,setTab]=useState("checklist");
+  const[form,setForm]=useState(EMPTY);
+  const[records,setRecords]=useState(load);
+  const[detail,setDetail]=useState(null);
+  const[errs,setErrs]=useState({});
+  const[ok,setOk]=useState(false);
+
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  function validate(){
+    const e={};
+    ["data","transportadora","operador","horaChegada","horaSaida","quantidade","chassiList","notaFiscal","destino","conferidoPor"].forEach(k=>{if(!form[k])e[k]=true});
+    setErrs(e);return Object.keys(e).length===0;
+  }
+
+  function submit(){
+    if(!validate())return;
+    const upd=[...records,{...form,id:Date.now()}];
+    setRecords(upd);save(upd);
+    setForm(EMPTY);setErrs({});setOk(true);
+    setTimeout(()=>setOk(false),3000);
+    setTab("historico");
+  }
+
+  function exportCSV(){
+    const h=["Data","NF","Destino","Transportadora","Operador","Auxiliar","Chegada","Saída","Tempo","Qtd","Condição","Conferido por","Chassi","Observações"];
+    const rows=records.map(r=>[r.data,r.notaFiscal,r.destino,r.transportadora,r.operador,r.auxiliar,r.horaChegada,r.horaSaida,dur(r.horaChegada,r.horaSaida)||"",r.quantidade,r.condicao,r.conferidoPor,r.chassiList.replace(/\n/g," | "),r.observacoes]);
+    const csv=[h,...rows].map(r=>r.map(v=>`"${(v||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
+    a.download=`expedicao_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+  }
+
+  const totalB=useMemo(()=>records.reduce((s,r)=>s+Number(r.quantidade||0),0),[records]);
+  const cond=useMemo(()=>{const m={OK:0,Avaria:0,Retrabalho:0};records.forEach(r=>{if(m[r.condicao]!==undefined)m[r.condicao]++});return m},[records]);
+  const transp=useMemo(()=>{const m={};records.forEach(r=>{m[r.transportadora]=(m[r.transportadora]||0)+Number(r.quantidade||0)});return Object.entries(m).sort((a,b)=>b[1]-a[1])},[records]);
+  const avgT=useMemo(()=>{const v=records.filter(r=>r.horaChegada&&r.horaSaida).map(r=>{const[h1,m1]=r.horaChegada.split(":").map(Number);const[h2,m2]=r.horaSaida.split(":").map(Number);return(h2*60+m2)-(h1*60+m1)}).filter(x=>x>0);if(!v.length)return null;const a=Math.round(v.reduce((a,b)=>a+b,0)/v.length);return`${Math.floor(a/60)}h${String(a%60).padStart(2,"0")}min`},[records]);
+  const porMes=useMemo(()=>{const m={};records.forEach(r=>{if(!r.data)return;const mes=new Date(r.data+"T12:00").getMonth();m[mes]=(m[mes]||0)+Number(r.quantidade||0)});return m},[records]);
+  const maxM=Math.max(...Object.values(porMes),1);
+
+  const TAB=(t)=>({padding:"9px 18px",background:tab===t?"#1e3a5f":"transparent",color:tab===t?"#fff":"#4a6fa5",border:"1px solid "+(tab===t?"#1e3a5f":"#cbd5e1"),borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer"});
+
+  return<div style={{minHeight:"100vh",background:"#f0f4f8",paddingBottom:60}}>
+
+    {/* HEADER */}
+    <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",gap:14,position:"sticky",top:0,zIndex:100}}>
+      <div style={{width:40,height:40,background:"#1e3a5f",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>⛽</div>
+      <div>
+        <div style={{fontWeight:800,fontSize:16,color:"#1e3a5f"}}>Checklist de Bombas e Revenda</div>
+        <div style={{color:"#64748b",fontSize:12,marginTop:1}}>Checklist · Histórico · Indicadores</div>
+      </div>
+      <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+        {["checklist","historico","indicadores"].map(t=>(
+          <button key={t} style={TAB(t)} onClick={()=>{setTab(t);setDetail(null)}}>
+            {t==="checklist"?"📋 Checklist":t==="historico"?"📁 Histórico":"📊 Indicadores"}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {ok&&<div style={{background:"#f0fdf4",borderBottom:"1px solid #86efac",color:"#16a34a",padding:"11px 24px",fontSize:13,textAlign:"center"}}>✓ Expedição registrada com sucesso!</div>}
+
+    <div style={{maxWidth:1060,margin:"0 auto",padding:"28px 20px"}}>
+
+      {/* ── CHECKLIST ── */}
+      {tab==="checklist"&&<div>
+        <h2 style={{fontWeight:800,fontSize:22,color:"#1e3a5f",marginBottom:6}}>Nova expedição</h2>
+        <p style={{color:"#64748b",fontSize:14,marginBottom:24}}>Preencha todos os campos obrigatórios antes de registrar.</p>
+
+        <div style={SECT}>
+          <STitle n="01" t="Dados do embarque"/>
+          <Grid c={3}>
+            <div><Label text="Data" req/><input type="date" value={form.data} onChange={e=>set("data",e.target.value)} style={INP(errs.data)}/><Err show={errs.data}/></div>
+            <div><Label text="Nota Fiscal (NF)" req/><input placeholder="NF-00000" value={form.notaFiscal} onChange={e=>set("notaFiscal",e.target.value)} style={INP(errs.notaFiscal)}/><Err show={errs.notaFiscal}/></div>
+            <div><Label text="Destino" req/><select value={form.destino} onChange={e=>set("destino",e.target.value)} style={INP(errs.destino)}>
+              <option value="">Selecione...</option>
+              {["SH NAC","SH EXP","Venda NAC","Marketing","Venda EXP"].map(o=><option key={o}>{o}</option>)}
+            </select><Err show={errs.destino}/></div>
+          </Grid>
+        </div>
+
+        <div style={SECT}>
+          <STitle n="02" t="Transportadora e veículo"/>
+          <div style={{marginBottom:14}}>
+            <Label text="Transportadora" req/>
+            <select value={form.transportadora} onChange={e=>set("transportadora",e.target.value)} style={INP(errs.transportadora)}>
+              <option value="">Selecione...</option>
+              {["JFC","INFINITY","SH"].map(o=><option key={o}>{o}</option>)}
+            </select>
+            <Err show={errs.transportadora}/>
+          </div>
+          <Grid c={2}>
+            <div><Label text="Hora de chegada" req/><input type="time" value={form.horaChegada} onChange={e=>set("horaChegada",e.target.value)} style={INP(errs.horaChegada)}/><Err show={errs.horaChegada}/></div>
+            <div><Label text="Hora de saída" req/><input type="time" value={form.horaSaida} onChange={e=>set("horaSaida",e.target.value)} style={INP(errs.horaSaida)}/><Err show={errs.horaSaida}/></div>
+          </Grid>
+          {dur(form.horaChegada,form.horaSaida)&&<div style={{marginTop:10,fontSize:13,color:"#1e3a5f",fontWeight:600}}>⏱ Tempo de atendimento: {dur(form.horaChegada,form.horaSaida)}</div>}
+        </div>
+
+        <div style={SECT}>
+          <STitle n="03" t="Equipe de expedição"/>
+          <Grid c={3}>
+            <div><Label text="Operador" req/><input placeholder="Responsável" value={form.operador} onChange={e=>set("operador",e.target.value)} style={INP(errs.operador)}/><Err show={errs.operador}/></div>
+            <div><Label text="Auxiliar"/><input placeholder="Nome do auxiliar" value={form.auxiliar} onChange={e=>set("auxiliar",e.target.value)} style={INP()}/></div>
+            <div><Label text="Conferido por" req/><input placeholder="Quem conferiu" value={form.conferidoPor} onChange={e=>set("conferidoPor",e.target.value)} style={INP(errs.conferidoPor)}/><Err show={errs.conferidoPor}/></div>
+          </Grid>
+        </div>
+
+        <div style={SECT}>
+          <STitle n="04" t="Bombas expedidas"/>
+          <Grid c={2}>
+            <div><Label text="Quantidade" req/><input type="number" min="1" placeholder="Ex: 4" value={form.quantidade} onChange={e=>set("quantidade",e.target.value)} style={INP(errs.quantidade)}/><Err show={errs.quantidade}/></div>
+            <div><Label text="Condição visual"/><select value={form.condicao} onChange={e=>set("condicao",e.target.value)} style={INP()}>
+              {["OK","Avaria","Retrabalho"].map(o=><option key={o}>{o}</option>)}
+            </select></div>
+          </Grid>
+          <div style={{marginTop:14}}>
+            <Label text="Nº dos chassi (um por linha)" req/>
+            <textarea rows={4} placeholder={"BP001\nBP002\nBP003"} value={form.chassiList} onChange={e=>set("chassiList",e.target.value)} style={INP(errs.chassiList)}/>
+            {form.chassiList&&<div style={{fontSize:12,color:"#64748b",marginTop:4}}>
+              {form.chassiList.split("\n").filter(Boolean).length} chassi(s) informado(s)
+              {form.quantidade&&Number(form.quantidade)!==form.chassiList.split("\n").filter(Boolean).length&&<span style={{color:"#d97706",marginLeft:8}}>⚠ Divergência com a quantidade</span>}
+            </div>}
+            <Err show={errs.chassiList}/>
+          </div>
+        </div>
+
+        <div style={SECT}>
+          <STitle n="05" t="Observações"/>
+          <Label text="Ocorrências / Observações"/>
+          <textarea rows={3} placeholder="Avarias, pendências, divergências..." value={form.observacoes} onChange={e=>set("observacoes",e.target.value)} style={INP()}/>
+        </div>
+
+        {Object.keys(errs).length>0&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"11px 16px",color:"#dc2626",fontSize:13,marginBottom:16}}>⚠ Preencha os campos obrigatórios antes de registrar.</div>}
+
+        <button onClick={submit} style={{background:"#1e3a5f",color:"#fff",border:"none",borderRadius:10,padding:"14px 30px",fontSize:15,fontWeight:800}}>✓ Registrar expedição</button>
+      </div>}
+
+      {/* ── HISTÓRICO ── */}
+      {tab==="historico"&&!detail&&<div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div>
+            <h2 style={{fontWeight:800,fontSize:22,color:"#1e3a5f"}}>Histórico de expedições</h2>
+            <p style={{color:"#64748b",fontSize:14,marginTop:4}}>{records.length} expedições · {totalB} bombas no total</p>
+          </div>
+          {records.length>0&&<button onClick={exportCSV} style={{background:"#fff",color:"#1e3a5f",border:"1px solid #1e3a5f",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700}}>↓ Exportar CSV</button>}
+        </div>
+        {records.length===0&&<div style={{...CARD,textAlign:"center",color:"#94a3b8",padding:40}}>Nenhuma expedição registrada ainda.</div>}
+        {records.slice().reverse().map((r,i)=>(
+          <div key={r.id} style={{...CARD,cursor:"pointer"}} onClick={()=>setDetail(r)}
+            onMouseEnter={e=>e.currentTarget.style.borderColor="#1e3a5f"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}>
+            <div style={{display:"flex",alignItems:"center",gap:16}}>
+              <div style={{textAlign:"center",minWidth:60}}>
+                <div style={{fontSize:24,fontWeight:800,color:"#1e3a5f"}}>{String(r.quantidade).padStart(2,"0")}</div>
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:1,color:"#94a3b8"}}>bombas</div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:15,color:"#1e3a5f"}}>{r.destino}</div>
+                <div style={{fontSize:13,color:"#64748b",marginTop:3}}>{r.transportadora} · {r.notaFiscal} · {r.data?new Date(r.data+"T12:00").toLocaleDateString("pt-BR"):""}</div>
+                <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Op: {r.operador}{r.auxiliar?` · Aux: ${r.auxiliar}`:""}{dur(r.horaChegada,r.horaSaida)?` · ⏱ ${dur(r.horaChegada,r.horaSaida)}`:""}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                <Badge s={r.condicao}/>
+                <div style={{fontSize:11,color:"#94a3b8"}}>ver detalhes →</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>}
+
+      {/* ── DETALHE ── */}
+      {tab==="historico"&&detail&&<div>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <button onClick={()=>setDetail(null)} style={{background:"#fff",color:"#1e3a5f",border:"1px solid #e2e8f0",borderRadius:8,padding:"8px 14px",fontSize:13}}>← Voltar</button>
+          <span style={{fontWeight:800,fontSize:18,color:"#1e3a5f"}}>Detalhes — {detail.notaFiscal}</span>
+          <Badge s={detail.condicao}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          {[["Data",detail.data?new Date(detail.data+"T12:00").toLocaleDateString("pt-BR"):"-"],["Nota Fiscal",detail.notaFiscal],["Destino",detail.destino],["Transportadora",detail.transportadora],["Operador",detail.operador],["Auxiliar",detail.auxiliar||"-"],["Conferido por",detail.conferidoPor],["Chegada / Saída",`${detail.horaChegada} → ${detail.horaSaida}${dur(detail.horaChegada,detail.horaSaida)?` (${dur(detail.horaChegada,detail.horaSaida)})`:""}`],["Quantidade",`${detail.quantidade} bomba(s)`],["Condição",detail.condicao]].map(([l,v])=>(
+            <div key={l} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:10,padding:"12px 16px"}}>
+              <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:1,color:"#94a3b8",marginBottom:4}}>{l}</div>
+              <div style={{fontWeight:600,color:"#1e3a5f"}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{...CARD}}>
+          <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:1,color:"#94a3b8",marginBottom:10}}>Chassi expedidos</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {detail.chassiList.split("\n").filter(Boolean).map(c=>(
+              <span key={c} style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:6,padding:"3px 12px",fontSize:13,color:"#1e3a5f"}}>{c}</span>
+            ))}
+          </div>
+        </div>
+        {detail.observacoes&&<div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"14px 16px",marginTop:8}}>
+          <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:1,color:"#92400e",marginBottom:6}}>Observações</div>
+          <div style={{fontSize:14,color:"#1e3a5f"}}>{detail.observacoes}</div>
+        </div>}
+      </div>}
+
+      {/* ── INDICADORES ── */}
+      {tab==="indicadores"&&<div>
+        <h2 style={{fontWeight:800,fontSize:22,color:"#1e3a5f",marginBottom:6}}>Indicadores de expedição</h2>
+        <p style={{color:"#64748b",fontSize:14,marginBottom:24}}>Dados históricos consolidados automaticamente</p>
+
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
+          <StatCard label="Total de expedições" value={records.length}/>
+          <StatCard label="Bombas expedidas" value={totalB} color="#1d4ed8"/>
+          <StatCard label="Conformidade" value={records.length?`${Math.round((cond.OK/records.length)*100)}%`:"-"} color="#16a34a" sub={`${cond.OK} de ${records.length} OK`}/>
+          <StatCard label="Tempo médio" value={avgT||"-"} color="#7c3aed" sub="por veículo"/>
+        </div>
+
+        <div style={SECT}>
+          <STitle n="" t="Condição das expedições"/>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            {Object.entries(cond).map(([k,v])=>(
+              <div key={k} style={{flex:1,minWidth:120,background:SC[k]+"10",border:`1px solid ${SC[k]}33`,borderRadius:10,padding:"16px 18px"}}>
+                <div style={{fontSize:28,fontWeight:800,color:SC[k]}}>{v}</div>
+                <div style={{fontSize:12,color:SC[k],marginTop:3}}>{k}</div>
+                <div style={{height:5,background:SC[k]+"22",borderRadius:3,marginTop:12}}>
+                  <div style={{height:5,background:SC[k],borderRadius:3,width:`${records.length?(v/records.length)*100:0}%`}}/>
+                </div>
+                <div style={{fontSize:12,color:SC[k],marginTop:5,fontWeight:700}}>{records.length?Math.round((v/records.length)*100):0}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={SECT}>
+          <STitle n="" t="Volume de bombas por mês"/>
+          <div style={{display:"flex",alignItems:"flex-end",gap:5,height:130}}>
+            {MESES.map((m,i)=>{
+              const v=porMes[i]||0;const pct=v?(v/maxM)*100:0;
+              return<div key={m} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                {v>0&&<div style={{fontSize:10,fontWeight:700,color:"#1e3a5f"}}>{v}</div>}
+                {!v&&<div style={{fontSize:10}}>&nbsp;</div>}
+                <div style={{width:"100%",background:"#e2e8f0",borderRadius:4,height:90,display:"flex",alignItems:"flex-end"}}>
+                  <div style={{width:"100%",background:v?"#1e3a5f":"transparent",height:`${pct}%`,borderRadius:4,minHeight:v?3:0}}/>
+                </div>
+                <div style={{fontSize:9,textTransform:"uppercase",color:"#94a3b8"}}>{m}</div>
+              </div>
+            })}
+          </div>
+        </div>
+
+        {transp.length>0&&<div style={SECT}>
+          <STitle n="" t="Bombas por transportadora"/>
+          {transp.map(([t,v])=>(
+            <div key={t} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+              <div style={{width:100,fontSize:13,fontWeight:600,color:"#1e3a5f",flexShrink:0}}>{t}</div>
+              <div style={{flex:1,background:"#e2e8f0",borderRadius:6,height:26,overflow:"hidden"}}>
+                <div style={{height:26,background:"#1e3a5f",width:`${totalB?(v/totalB)*100:0}%`,borderRadius:6,display:"flex",alignItems:"center",paddingLeft:8}}>
+                  <span style={{color:"#fff",fontSize:12,fontWeight:700}}>{v}</span>
+                </div>
+              </div>
+              <div style={{fontSize:12,color:"#64748b",width:32}}>{totalB?Math.round((v/totalB)*100):0}%</div>
+            </div>
+          ))}
+        </div>}
+
+        {records.filter(r=>r.observacoes).length>0&&<div style={SECT}>
+          <STitle n="" t="Últimas ocorrências"/>
+          {records.filter(r=>r.observacoes).slice(-3).map(r=>(
+            <div key={r.id} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                <span style={{fontWeight:700,fontSize:13,color:"#1e3a5f"}}>{r.notaFiscal} — {r.destino}</span>
+                <Badge s={r.condicao}/>
+              </div>
+              <div style={{fontSize:13,color:"#64748b"}}>{r.observacoes}</div>
+              <div style={{fontSize:11,color:"#94a3b8",marginTop:5}}>{r.data?new Date(r.data+"T12:00").toLocaleDateString("pt-BR"):""} · {r.operador}</div>
+            </div>
+          ))}
+        </div>}
+      </div>}
+
+    </div>
+  </div>
+}
+
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
