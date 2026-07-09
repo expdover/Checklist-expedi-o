@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checklist de Bombas e Revenda</title>
+<title>Gestão de Expedição de Bombas e Revenda</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#f0f4f8;font-family:'Segoe UI',sans-serif;color:#1e3a5f}
+body{background:#2c4a6e;font-family:'Segoe UI',sans-serif;color:#1e3a5f}
 input,select,textarea{width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e3a5f;font-size:14px;font-family:inherit;outline:none}
 input:focus,select:focus,textarea:focus{border-color:#1e3a5f}
 textarea{resize:vertical}
 button{font-family:inherit;cursor:pointer}
 ::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:#f0f4f8}
+::-webkit-scrollbar-track{background:#2c4a6e}
 ::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
 </style>
 </head>
@@ -23,27 +23,35 @@ button{font-family:inherit;cursor:pointer}
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useMemo}=React;
-const SK='bombas_rev_v1';
+const SUPABASE_URL='https://sworxoyorfclfegirep.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3b3J4b3lvcmZjbGZlZ2lyZXB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjk1OTYsImV4cCI6MjA5NjcwNTU5Nn0.Se5y85fW_vqJVgUDjpHia-DTOMH77OTTAnTHTn2-Jbg';
+
+async function sbFetch(path, opts={}){
+  const res = await fetch(SUPABASE_URL+'/rest/v1/'+path, {
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+    ...opts
+  });
+  return res.json();
+}
 const MESES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const EMPTY={data:"",transportadora:"",operador:"",auxiliar:"",horaChegada:"",horaSaida:"",notaFiscal:"",destino:"",quantidade:"",chassiList:"",condicao:"OK",conferidoPor:"",observacoes:""};
+const EMPTY={data:"",transportadora:"",tipoVeiculo:"",operador:"",auxiliar:"",horaChegada:"",horaSaida:"",notaFiscal:"",destino:"",quantidade:"",chassiList:"",condicao:"OK",conferidoPor:"",observacoes:""};
 const SC={OK:"#16a34a",Avaria:"#dc2626",Retrabalho:"#d97706"};
 
-function load(){try{const d=localStorage.getItem(SK);return d?JSON.parse(d):[]}catch{return[]}}
-function save(r){try{localStorage.setItem(SK,JSON.stringify(r))}catch{}}
+
 function dur(a,b){if(!a||!b)return null;const[h1,m1]=a.split(":").map(Number);const[h2,m2]=b.split(":").map(Number);const t=(h2*60+m2)-(h1*60+m1);if(t<=0)return null;return`${Math.floor(t/60)}h${String(t%60).padStart(2,"0")}min`}
 
 const INP=(err)=>({width:"100%",padding:"9px 12px",border:`1px solid ${err?"#dc2626":"#cbd5e1"}`,borderRadius:8,background:"#fff",color:"#1e3a5f",fontSize:14,fontFamily:"inherit",outline:"none"});
-const CARD={background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"18px 20px",marginBottom:12};
-const SECT={background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"20px",marginBottom:16};
+const CARD={background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:12,padding:"18px 20px",marginBottom:12};
+const SECT={background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:12,padding:"20px",marginBottom:16};
 
 function Label({text,req}){return<div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"1px",color:"#4a6fa5",fontWeight:600,marginBottom:5}}>{text}{req&&<span style={{color:"#d97706",marginLeft:3}}>*</span>}</div>}
 function Err({show}){return show?<div style={{fontSize:11,color:"#dc2626",marginTop:3}}>Campo obrigatório</div>:null}
-function STitle({n,t}){return<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#1e3a5f",whiteSpace:"nowrap"}}>{n} — {t}</span><div style={{flex:1,height:1,background:"#e2e8f0"}}/></div>}
+function STitle({n,t}){return<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}><span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#1e3a5f",whiteSpace:"nowrap"}}>{n} — {t}</span><div style={{flex:1,height:1,background:"#a0c4e4"}}/></div>}
 function Grid({c,children}){return<div style={{display:"grid",gridTemplateColumns:`repeat(${c},1fr)`,gap:14}}>{children}</div>}
 function Badge({s}){return<span style={{background:SC[s]+"18",color:SC[s],border:`1px solid ${SC[s]}44`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>{s}</span>}
 
 function StatCard({label,value,color="#1e3a5f",sub}){
-  return<div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"18px 20px",flex:1,minWidth:130}}>
+  return<div style={{background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:12,padding:"18px 20px",flex:1,minWidth:130}}>
     <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"1px",color:"#4a6fa5",marginBottom:8}}>{label}</div>
     <div style={{fontSize:30,fontWeight:700,color,lineHeight:1}}>{value}</div>
     {sub&&<div style={{fontSize:12,color:"#64748b",marginTop:5}}>{sub}</div>}
@@ -53,7 +61,8 @@ function StatCard({label,value,color="#1e3a5f",sub}){
 function App(){
   const[tab,setTab]=useState("checklist");
   const[form,setForm]=useState(EMPTY);
-  const[records,setRecords]=useState(load);
+  const[records,setRecords]=useState([]);
+  const[loading,setLoading]=useState(true);
   const[detail,setDetail]=useState(null);
   const[errs,setErrs]=useState({});
   const[ok,setOk]=useState(false);
@@ -62,27 +71,50 @@ function App(){
 
   function validate(){
     const e={};
-    ["data","transportadora","operador","horaChegada","horaSaida","quantidade","chassiList","notaFiscal","destino","conferidoPor"].forEach(k=>{if(!form[k])e[k]=true});
+    ["data","transportadora","tipoVeiculo","operador","horaChegada","horaSaida","quantidade","chassiList","notaFiscal","destino","conferidoPor"].forEach(k=>{if(!form[k])e[k]=true});
     setErrs(e);return Object.keys(e).length===0;
   }
 
-  function submit(){
+  async function submit(){
     if(!validate())return;
-    const upd=[...records,{...form,id:Date.now()}];
-    setRecords(upd);save(upd);
+    const rec={
+      data:form.data, transportadora:form.transportadora, tipo_veiculo:form.tipoVeiculo,
+      operador:form.operador, hora_chegada:form.horaChegada, hora_saida:form.horaSaida,
+      nota_fiscal:form.notaFiscal, destino:form.destino, quantidade:form.quantidade,
+      chassi_list:form.chassiList, condicao:form.condicao, conferido_por:form.conferidoPor,
+      observacoes:form.observacoes
+    };
+    const res = await sbFetch('expedicoes', {method:'POST', body:JSON.stringify(rec)});
+    const saved = Array.isArray(res) ? res[0] : res;
+    setRecords(r=>[...r,{...form, id:saved.id, tipoVeiculo:form.tipoVeiculo}]);
     setForm(EMPTY);setErrs({});setOk(true);
     setTimeout(()=>setOk(false),3000);
     setTab("historico");
   }
 
   function exportCSV(){
-    const h=["Data","NF","Destino","Transportadora","Operador","Auxiliar","Chegada","Saída","Tempo","Qtd","Condição","Conferido por","Chassi","Observações"];
-    const rows=records.map(r=>[r.data,r.notaFiscal,r.destino,r.transportadora,r.operador,r.auxiliar,r.horaChegada,r.horaSaida,dur(r.horaChegada,r.horaSaida)||"",r.quantidade,r.condicao,r.conferidoPor,r.chassiList.replace(/\n/g," | "),r.observacoes]);
+    const h=["Data","NF","Destino","Transportadora","Tipo Veículo","Operador","Auxiliar","Chegada","Saída","Tempo","Qtd","Condição","Conferido por","Chassi","Observações"];
+    const rows=records.map(r=>[r.data,r.notaFiscal,r.destino,r.transportadora,r.tipoVeiculo||"",r.operador,r.auxiliar,r.horaChegada,r.horaSaida,dur(r.horaChegada,r.horaSaida)||"",r.quantidade,r.condicao,r.conferidoPor,r.chassiList.replace(/\n/g," | "),r.observacoes]);
     const csv=[h,...rows].map(r=>r.map(v=>`"${(v||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
     a.download=`expedicao_${new Date().toISOString().slice(0,10)}.csv`;a.click();
   }
+
+  React.useEffect(()=>{
+    sbFetch('expedicoes?order=id.asc').then(data=>{
+      if(Array.isArray(data)){
+        setRecords(data.map(r=>({
+          id:r.id, data:r.data, transportadora:r.transportadora, tipoVeiculo:r.tipo_veiculo,
+          operador:r.operador, horaChegada:r.hora_chegada, horaSaida:r.hora_saida,
+          notaFiscal:r.nota_fiscal, destino:r.destino, quantidade:r.quantidade,
+          chassiList:r.chassi_list, condicao:r.condicao, conferidoPor:r.conferido_por,
+          observacoes:r.observacoes||""
+        })));
+      }
+      setLoading(false);
+    });
+  },[]);
 
   const totalB=useMemo(()=>records.reduce((s,r)=>s+Number(r.quantidade||0),0),[records]);
   const cond=useMemo(()=>{const m={OK:0,Avaria:0,Retrabalho:0};records.forEach(r=>{if(m[r.condicao]!==undefined)m[r.condicao]++});return m},[records]);
@@ -93,19 +125,19 @@ function App(){
 
   const TAB=(t)=>({padding:"9px 18px",background:tab===t?"#1e3a5f":"transparent",color:tab===t?"#fff":"#4a6fa5",border:"1px solid "+(tab===t?"#1e3a5f":"#cbd5e1"),borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer"});
 
-  return<div style={{minHeight:"100vh",background:"#f0f4f8",paddingBottom:60}}>
+  return<div style={{minHeight:"100vh",background:"#2c4a6e",paddingBottom:60}}>
 
     {/* HEADER */}
-    <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",gap:14,position:"sticky",top:0,zIndex:100}}>
+    <div style={{background:"#b8d4ee",borderBottom:"1px solid #a0c4e4",padding:"14px 24px",display:"flex",alignItems:"center",gap:14,position:"sticky",top:0,zIndex:100}}>
       <div style={{width:40,height:40,background:"#1e3a5f",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>⛽</div>
       <div>
-        <div style={{fontWeight:800,fontSize:16,color:"#1e3a5f"}}>Checklist de Bombas e Revenda</div>
+        <div style={{fontWeight:800,fontSize:16,color:"#1e3a5f"}}>Gestão de Expedição de Bombas e Revenda</div>
         <div style={{color:"#64748b",fontSize:12,marginTop:1}}>Checklist · Histórico · Indicadores</div>
       </div>
       <div style={{marginLeft:"auto",display:"flex",gap:8}}>
         {["checklist","historico","indicadores"].map(t=>(
           <button key={t} style={TAB(t)} onClick={()=>{setTab(t);setDetail(null)}}>
-            {t==="checklist"?"📋 Checklist":t==="historico"?"📁 Histórico":"📊 Indicadores"}
+            {t==="checklist"?"📋 Checklist":t==="historico"?"📁 Histórico":"📊 Dashboard"}
           </button>
         ))}
       </div>
@@ -117,8 +149,8 @@ function App(){
 
       {/* ── CHECKLIST ── */}
       {tab==="checklist"&&<div>
-        <h2 style={{fontWeight:800,fontSize:22,color:"#1e3a5f",marginBottom:6}}>Nova expedição</h2>
-        <p style={{color:"#64748b",fontSize:14,marginBottom:24}}>Preencha todos os campos obrigatórios antes de registrar.</p>
+        <h2 style={{fontWeight:800,fontSize:22,color:"#ffffff",marginBottom:6}}>Nova expedição</h2>
+        <p style={{color:"#ffffff",fontSize:14,marginBottom:24}}>Preencha todos os campos obrigatórios antes de registrar.</p>
 
         <div style={SECT}>
           <STitle n="01" t="Dados do embarque"/>
@@ -127,21 +159,31 @@ function App(){
             <div><Label text="Nota Fiscal (NF)" req/><input placeholder="NF-00000" value={form.notaFiscal} onChange={e=>set("notaFiscal",e.target.value)} style={INP(errs.notaFiscal)}/><Err show={errs.notaFiscal}/></div>
             <div><Label text="Destino" req/><select value={form.destino} onChange={e=>set("destino",e.target.value)} style={INP(errs.destino)}>
               <option value="">Selecione...</option>
-              {["SH NAC","SH EXP","Venda NAC","Marketing","Venda EXP"].map(o=><option key={o}>{o}</option>)}
+              {["Transferência SH","Venda NAC","Marketing","Venda EXP"].map(o=><option key={o}>{o}</option>)}
             </select><Err show={errs.destino}/></div>
           </Grid>
         </div>
 
         <div style={SECT}>
-          <STitle n="02" t="Transportadora e veículo"/>
-          <div style={{marginBottom:14}}>
-            <Label text="Transportadora" req/>
-            <select value={form.transportadora} onChange={e=>set("transportadora",e.target.value)} style={INP(errs.transportadora)}>
-              <option value="">Selecione...</option>
-              {["JFC","INFINITY","SH"].map(o=><option key={o}>{o}</option>)}
-            </select>
-            <Err show={errs.transportadora}/>
-          </div>
+          <STitle n="02" t="Transportadora e tipo de veículo"/>
+          <Grid c={2}>
+            <div>
+              <Label text="Transportadora" req/>
+              <select value={form.transportadora} onChange={e=>set("transportadora",e.target.value)} style={INP(errs.transportadora)}>
+                <option value="">Selecione...</option>
+                {["JFC","INFINITY","SH"].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <Err show={errs.transportadora}/>
+            </div>
+            <div>
+              <Label text="Tipo do veículo" req/>
+              <select value={form.tipoVeiculo} onChange={e=>set("tipoVeiculo",e.target.value)} style={INP(errs.tipoVeiculo)}>
+                <option value="">Selecione...</option>
+                {["Truck","Carreta"].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <Err show={errs.tipoVeiculo}/>
+            </div>
+          </Grid>
           <Grid c={2}>
             <div><Label text="Hora de chegada" req/><input type="time" value={form.horaChegada} onChange={e=>set("horaChegada",e.target.value)} style={INP(errs.horaChegada)}/><Err show={errs.horaChegada}/></div>
             <div><Label text="Hora de saída" req/><input type="time" value={form.horaSaida} onChange={e=>set("horaSaida",e.target.value)} style={INP(errs.horaSaida)}/><Err show={errs.horaSaida}/></div>
@@ -153,7 +195,6 @@ function App(){
           <STitle n="03" t="Equipe de expedição"/>
           <Grid c={3}>
             <div><Label text="Operador" req/><input placeholder="Responsável" value={form.operador} onChange={e=>set("operador",e.target.value)} style={INP(errs.operador)}/><Err show={errs.operador}/></div>
-            <div><Label text="Auxiliar"/><input placeholder="Nome do auxiliar" value={form.auxiliar} onChange={e=>set("auxiliar",e.target.value)} style={INP()}/></div>
             <div><Label text="Conferido por" req/><input placeholder="Quem conferiu" value={form.conferidoPor} onChange={e=>set("conferidoPor",e.target.value)} style={INP(errs.conferidoPor)}/><Err show={errs.conferidoPor}/></div>
           </Grid>
         </div>
@@ -197,7 +238,7 @@ function App(){
           </div>
           {records.length>0&&<button onClick={exportCSV} style={{background:"#fff",color:"#1e3a5f",border:"1px solid #1e3a5f",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700}}>↓ Exportar CSV</button>}
         </div>
-        {records.length===0&&<div style={{...CARD,textAlign:"center",color:"#94a3b8",padding:40}}>Nenhuma expedição registrada ainda.</div>}
+        {loading&&<div style={{background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:12,textAlign:"center",color:"#1e3a5f",padding:40}}>⏳ Carregando registros...</div>}{!loading&&records.length===0&&<div style={{background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:12,textAlign:"center",color:"#1e3a5f",padding:40}}>Nenhuma expedição registrada ainda.</div>}
         {records.slice().reverse().map((r,i)=>(
           <div key={r.id} style={{...CARD,cursor:"pointer"}} onClick={()=>setDetail(r)}
             onMouseEnter={e=>e.currentTarget.style.borderColor="#1e3a5f"}
@@ -229,8 +270,8 @@ function App(){
           <Badge s={detail.condicao}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          {[["Data",detail.data?new Date(detail.data+"T12:00").toLocaleDateString("pt-BR"):"-"],["Nota Fiscal",detail.notaFiscal],["Destino",detail.destino],["Transportadora",detail.transportadora],["Operador",detail.operador],["Auxiliar",detail.auxiliar||"-"],["Conferido por",detail.conferidoPor],["Chegada / Saída",`${detail.horaChegada} → ${detail.horaSaida}${dur(detail.horaChegada,detail.horaSaida)?` (${dur(detail.horaChegada,detail.horaSaida)})`:""}`],["Quantidade",`${detail.quantidade} bomba(s)`],["Condição",detail.condicao]].map(([l,v])=>(
-            <div key={l} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:10,padding:"12px 16px"}}>
+          {[["Data",detail.data?new Date(detail.data+"T12:00").toLocaleDateString("pt-BR"):"-"],["Nota Fiscal",detail.notaFiscal],["Destino",detail.destino],["Transportadora",detail.transportadora],["Tipo do Veículo",detail.tipoVeiculo||"-"],["Operador",detail.operador],["Auxiliar",detail.auxiliar||"-"],["Conferido por",detail.conferidoPor],["Chegada / Saída",`${detail.horaChegada} → ${detail.horaSaida}${dur(detail.horaChegada,detail.horaSaida)?` (${dur(detail.horaChegada,detail.horaSaida)})`:""}`],["Quantidade",`${detail.quantidade} bomba(s)`],["Condição",detail.condicao]].map(([l,v])=>(
+            <div key={l} style={{background:"#b8d4ee",border:"1px solid #a0c4e4",borderRadius:10,padding:"12px 16px"}}>
               <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:1,color:"#94a3b8",marginBottom:4}}>{l}</div>
               <div style={{fontWeight:600,color:"#1e3a5f"}}>{v}</div>
             </div>
@@ -286,7 +327,7 @@ function App(){
               return<div key={m} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                 {v>0&&<div style={{fontSize:10,fontWeight:700,color:"#1e3a5f"}}>{v}</div>}
                 {!v&&<div style={{fontSize:10}}>&nbsp;</div>}
-                <div style={{width:"100%",background:"#e2e8f0",borderRadius:4,height:90,display:"flex",alignItems:"flex-end"}}>
+                <div style={{width:"100%",background:"#a0c4e4",borderRadius:4,height:90,display:"flex",alignItems:"flex-end"}}>
                   <div style={{width:"100%",background:v?"#1e3a5f":"transparent",height:`${pct}%`,borderRadius:4,minHeight:v?3:0}}/>
                 </div>
                 <div style={{fontSize:9,textTransform:"uppercase",color:"#94a3b8"}}>{m}</div>
@@ -300,7 +341,7 @@ function App(){
           {transp.map(([t,v])=>(
             <div key={t} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
               <div style={{width:100,fontSize:13,fontWeight:600,color:"#1e3a5f",flexShrink:0}}>{t}</div>
-              <div style={{flex:1,background:"#e2e8f0",borderRadius:6,height:26,overflow:"hidden"}}>
+              <div style={{flex:1,background:"#a0c4e4",borderRadius:6,height:26,overflow:"hidden"}}>
                 <div style={{height:26,background:"#1e3a5f",width:`${totalB?(v/totalB)*100:0}%`,borderRadius:6,display:"flex",alignItems:"center",paddingLeft:8}}>
                   <span style={{color:"#fff",fontSize:12,fontWeight:700}}>{v}</span>
                 </div>
